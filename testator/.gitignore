@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# generated run data (timestamped scan reports + accumulated history log)
+reports/
+history/
+
+# runtime logs
+logs/
+*.log
+
+# auth state (session cookies/tokens from Playwright login)
+.auth/
+
+# secrets / local env overrides
+.env
+.env.*
+!.env.example
+
+# Playwright's own output dirs (in case tests are added later)
+playwright-report/
+test-results/
+blob-report/
+
+# editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,86 @@
+{
+  "name": "454",
+  "recordedAt": "2026-11-07T01:02:43.514Z",
+  "steps": [
+    {
+      "action": "click",
+      "selector": {
+        "type": "id",
+        "value": "#case-cancel-btn"
+      },
+      "value": "",
+      "tag": "button",
+      "timestamp": 1794013352370
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "css",
+        "value": "button"
+      },
+      "value": "",
+      "tag": "button",
+      "timestamp": 1794013353352
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "css",
+        "value": "li"
+      },
+      "value": 0,
+      "tag": "li",
+      "timestamp": 1794013354120
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "css",
+        "value": "li"
+      },
+      "value": 0,
+      "tag": "li",
+      "timestamp": 1794013354786
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "css",
+        "value": "li"
+      },
+      "value": 0,
+      "tag": "li",
+      "timestamp": 1794013354926
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "css",
+        "value": "button"
+      },
+      "value": "",
+      "tag": "button",
+      "timestamp": 1794013357669
+    },
+    {
+      "action": "click",
+      "selector": {
+        "type": "id",
+        "value": "#flag-velocity"
+      },
+      "value": false,
+      "tag": "input",
+      "timestamp": 1794013358689
+    },
+    {
+      "action": "change",
+      "selector": {
+        "type": "id",
+        "value": "#flag-velocity"
+      },
+      "value": false,
+      "tag": "input",
+      "timestamp": 1794013358689
+    }
+  ]
+}

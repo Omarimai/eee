@@ -1,0 +1,23 @@
+{
+  "baseUrl": "file:///C:/Users/LEGION/github/test-cli/lab/index.html",
+  "environment": "development",
+  "browser": "chromium",
+  "headless": false,
+  "auth": {
+    "username": "admin",
+    "password": "admin"
+  },
+  "reportsDir": "./reports",
+  "historyDir": "./history",
+  "scenariosDir": "./scenarios",
+  "logsDir": "./logs",
+  "authStatePath": "./.auth/state.json",
+  "selectors": {
+    "workspacePicker": ".workspace-tab",
+    "screenPicker": ".sidebar-nav .nav-link",
+    "contentRegion": "#route-content"
+  },
+  "ai": {
+    "enabled": false
+  }
+}

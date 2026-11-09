@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simple SPA + Login</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --text: #1e293b;
+    --muted: #64748b;
+    --danger: #ef4444;
+    --success: #16a34a;
+    --border: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+  }
+  p.subtitle {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+  input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="date"] {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  input[type="color"] {
+    width: 56px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    cursor: pointer;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="file"] {
+    width: 100%;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  button {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .link-row {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .link-row a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .link-row a:hover { text-decoration: underline; }
+  .msg {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .msg.error { display: block; background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+  .msg.success { display: block; background: rgba(22,163,74,0.12); color: var(--success); border: 1px solid rgba(22,163,74,0.3); }
+
+  /* Auth view: centered card, full viewport */
+  .auth-shell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .auth-shell.hidden { display: none; }
+
+  /* App view: full-bleed dashboard — top header + left sidebar */
+  .app-shell {
+    display: none;
+    width: 100%;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+  .app-shell.active { display: flex; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .topbar .user-info { font-size: 14px; white-space: nowrap; }
+  .topbar .user-info strong { color: var(--accent); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+
+  .workspace-switcher { display: flex; gap: 8px; }
+  .workspace-tab {
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1.5px solid;
+    background: transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .workspace-tab.ws-operations { color: var(--muted); border-color: var(--muted); }
+  .workspace-tab.ws-admin { color: var(--danger); border-color: var(--danger); }
+  .workspace-tab.ws-params { color: var(--success); border-color: var(--success); }
+  .workspace-tab.ws-operations:hover { background: rgba(148,163,184,0.12); }
+  .workspace-tab.ws-admin:hover { background: rgba(239,68,68,0.12); }
+  .workspace-tab.ws-params:hover { background: rgba(22,163,74,0.12); }
+  .workspace-tab.active.ws-operations { background: var(--muted); color: #ffffff; }
+  .workspace-tab.active.ws-admin { background: var(--danger); color: #ffffff; }
+  .workspace-tab.active.ws-params { background: var(--success); color: #ffffff; }
+
+  .logout-btn {
+    width: auto;
+    padding: 8px 16px;
+    font-size: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .logout-btn:hover { background: var(--border); }
+
+  .dashboard-layout {
+    display: flex;
+    flex: 1;
+    align-items: stretch;
+  }
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+  }
+  .sidebar-search { position: relative; margin-bottom: 16px; }
+  .sidebar-search input {
+    width: 100%;
+    padding: 8px 42px 8px 12px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .sidebar-search kbd {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .sidebar-section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 6px;
+    padding: 0 10px;
+  }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .nav-link:hover { background: var(--border); }
+  .nav-link.active { background: var(--accent); color: white; }
+  .back-link { display: inline-block; margin-bottom: 16px; }
+  .content { flex: 1; min-width: 0; padding: 24px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .panel h2 { margin-top: 0; font-size: 18px; }
+  .route-note { margin-top: 16px; font-size: 12px; color: var(--muted); }
+  .route-note code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--accent); }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  .data-table th, .data-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .badge {
+    display: inline-block;
+    background: rgba(100,116,139,0.12);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    text-transform: capitalize;
+  }
+  .badge.status-active { background: rgba(22,163,74,0.12); color: var(--success); border-color: rgba(22,163,74,0.3); }
+  .badge.status-pending { background: rgba(100,116,139,0.12); color: var(--muted); border-color: var(--border); }
+  .badge.status-suspended { background: rgba(239,68,68,0.12); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+  .badge.status-open { background: rgba(99,102,241,0.12); color: var(--accent); border-color: rgba(99,102,241,0.3); }
+  .badge.status-investigating { background: rgba(100,116,139,0.12); color: var(--muted); border-color: var(--border); }
+  .badge.status-closed { background: rgba(22,163,74,0.12); color: var(--success); border-color: rgba(22,163,74,0.3); }
+  .badge.status-escalated { background: rgba(239,68,68,0.12); color: var(--danger); border-color: rgba(239,68,68,0.3); }
+
+  /* Search form (used by Admin > Users and Operations > Cases) */
+  .search-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .search-field label { margin-bottom: 4px; }
+  .search-field input, .search-field select { margin-bottom: 0; }
+  .search-submit { width: auto; padding: 10px 24px; margin-top: 14px; }
+
+  /* Clickable record results list (shared by Admin > Users and Cases) */
+  .result-list { list-style: none; padding: 0; margin: 16px 0 0; }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .result-row:hover, .result-row:focus { background: var(--bg); outline: none; }
+  .result-row.selected { background: rgba(99,102,241,0.08); box-shadow: inset 0 0 0 1px rgba(99,102,241,0.4); }
+  .result-row:last-child { border-bottom: none; }
+  .result-main { display: flex; flex-direction: column; gap: 2px; }
+  .result-name { font-size: 14px; font-weight: 600; }
+  .result-sub { font-size: 12px; color: var(--muted); }
+  .result-meta { display: flex; align-items: center; gap: 10px; }
+  .result-tag { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+
+  /* Record detail form fields — intentional grab-bag of input edge cases */
+  .field-group-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 22px 0 12px;
+  }
+  .field-group-title:first-of-type { margin-top: 0; }
+  .field-row { margin-bottom: 14px; }
+  .field-row input[type="text"], .field-row input[type="email"], .field-row input[type="number"],
+  .field-row input[type="date"], .field-row select, .field-row textarea {
+    margin-bottom: 0;
+  }
+  .field-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .field-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .field-hint code {
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .radio-row, .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .radio-row label, .checkbox-row label { margin: 0; color: var(--text); font-size: 14px; }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .detail-actions { display: flex; gap: 10px; }
+  .detail-actions button { width: auto; padding: 10px 22px; }
+  #detail-cancel-btn, #case-cancel-btn, #confirm-delete-cancel {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+  }
+  #detail-cancel-btn:hover, #case-cancel-btn:hover, #confirm-delete-cancel:hover { background: var(--border); }
+
+  /* Case detail: small sidebar to switch between field groups */
+  .case-detail-layout { display: flex; gap: 20px; margin-top: 4px; flex-wrap: wrap; }
+  .group-nav {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .group-nav-btn {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .group-nav-btn:hover { background: var(--bg); }
+  .group-nav-btn.active { background: var(--accent); color: white; }
+  .group-panels { flex: 1; min-width: 240px; }
+  .group-panel[hidden] { display: none; }
+
+  .param-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .param-row:last-child { border-bottom: none; }
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--border); transition: 0.2s; border-radius: 22px;
+  }
+  .switch .slider:before {
+    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background-color: white; transition: 0.2s; border-radius: 50%;
+  }
+  .switch input:checked + .slider { background-color: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(18px); }
+
+  /* Parameters > General: accordion sections */
+  .panel details {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .panel details summary {
+    cursor: pointer;
+    padding: 14px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--bg);
+    list-style: none;
+  }
+  .panel details summary::-webkit-details-marker { display: none; }
+  .panel details summary::before {
+    content: '▸';
+    display: inline-block;
+    width: 14px;
+    margin-right: 6px;
+    transition: transform 0.15s;
+    color: var(--muted);
+  }
+  .panel details[open] summary::before { transform: rotate(90deg); }
+  .details-body { padding: 16px; }
+  .details-body .subtitle { margin-bottom: 14px; }
+
+  .tag-input-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 6px 3px 10px;
+    font-size: 12px;
+  }
+  .tag-remove {
+    all: unset;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .tag-remove:hover { color: var(--danger); }
+  .tag-input-box input {
+    flex: 1;
+    min-width: 140px;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    margin: 0;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .api-key-row { display: flex; gap: 8px; align-items: center; }
+  .api-key-row input { flex: 1; margin-bottom: 0; font-family: ui-monospace, Consolas, monospace; }
+  .icon-btn {
+    display: inline-block;
+    width: auto;
+    padding: 9px 14px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .icon-btn:hover { background: var(--border); }
+
+  .reorder-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .reorder-item {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    font-size: 14px;
+    cursor: grab;
+    user-select: none;
+  }
+  .reorder-item:active { cursor: grabbing; }
+  .reorder-item.dragging { opacity: 0.4; }
+
+  .danger-btn { width: auto; padding: 10px 20px; background: var(--danger); }
+  .danger-btn:hover { background: #dc2626; }
+
+  #confirm-delete-dialog {
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 380px;
+    width: 90%;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.25);
+    color: var(--text);
+    background: var(--card);
+  }
+  #confirm-delete-dialog::backdrop { background: rgba(15,23,42,0.5); }
+  #confirm-delete-dialog h2 { margin: 0 0 6px; font-size: 17px; }
+  #confirm-delete-dialog input[type="text"] { margin-bottom: 16px; }
+  #confirm-delete-confirm { background: var(--danger); }
+  #confirm-delete-confirm:hover { background: #dc2626; }
+  #confirm-delete-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+  }
+  .toast {
+    background: var(--text);
+    color: var(--card);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 6px 20px rgba(15,23,42,0.2);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast-success { background: var(--success); }
+  .toast-error { background: var(--danger); }
+
+  .todo-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .todo-input-row input { margin-bottom: 0; }
+  .todo-input-row button { width: auto; padding: 10px 18px; white-space: nowrap; }
+  ul.todo-list { list-style: none; padding: 0; margin: 0; }
+  ul.todo-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  ul.todo-list li:last-child { border-bottom: none; }
+  ul.todo-list li.done span.text { text-decoration: line-through; color: var(--muted); }
+  .todo-actions { display: flex; gap: 10px; align-items: center; }
+  .todo-actions button, .todo-actions span.checkbox {
+    width: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .todo-actions .delete { color: var(--danger); border-color: rgba(239,68,68,0.3); }
+  .empty-state { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+  <!-- AUTH VIEWS -->
+  <div class="auth-shell" id="auth-shell">
+
+    <div class="card" id="login-card">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your account</p>
+      <div class="msg" id="login-msg"></div>
+      <form id="login-form">
+        <label for="login-username">Username</label>
+        <input id="login-username" type="text" autocomplete="username" required />
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" required />
+        <button type="submit">Log in</button>
+      </form>
+      <div class="link-row">No account? <a id="go-register">Create one</a></div>
+    </div>
+
+    <div class="card" id="register-card" style="display:none;">
+      <h1>Create account</h1>
+      <p class="subtitle">It only takes a few seconds</p>
+      <div class="msg" id="register-msg"></div>
+      <form id="register-form">
+        <label for="register-username">Username</label>
+        <input id="register-username" type="text" autocomplete="username" required minlength="3" />
+        <label for="register-password">Password</label>
+        <input id="register-password" type="password" autocomplete="new-password" required minlength="4" />
+        <button type="submit">Sign up</button>
+      </form>
+      <div class="link-row">Already have an account? <a id="go-login">Log in</a></div>
+    </div>
+
+  </div>
+
+  <!-- APP VIEW (shown after login) -->
+  <div class="app-shell" id="app-shell">
+    <div class="topbar">
+      <div class="user-info">Signed in as <strong id="current-user"></strong></div>
+      <div class="topbar-right">
+        <div class="workspace-switcher" id="workspace-switcher">
+          <a href="#/op/fraud" class="workspace-tab ws-operations" data-workspace="operations">Operations</a>
+          <a href="#/admin/users" class="workspace-tab ws-admin" data-workspace="admin">Admin</a>
+          <a href="#/param/general" class="workspace-tab ws-params" data-workspace="params">Parameters</a>
+        </div>
+        <button class="logout-btn" id="logout-btn">Log out</button>
+      </div>
+    </div>
+    <div class="dashboard-layout">
+      <nav class="sidebar">
+        <div class="sidebar-search">
+          <input type="text" id="sidebar-search-input" placeholder="Search" />
+          <kbd>&#8984;1</kbd>
+        </div>
+        <div class="sidebar-section-label" id="sidebar-section-label"></div>
+        <div class="sidebar-nav" id="sidebar-nav"></div>
+      </nav>
+      <div class="content" id="route-content"></div>
+    </div>
+  </div>
+
+<script>
+/*
+ * ---- Fake "backend" ----
+ * Simulates an API over localStorage with artificial async delay.
+ * This is a client-side demo only: anyone with devtools can read the
+ * source, so this is NOT secure authentication for a real deployment.
+ * Swap this module out for real fetch() calls to a real backend later;
+ * the UI code below only talks to this object, never to localStorage directly.
+ */
+const api = (() => {
+  const DB_USERS = 'app_users';
+  const DB_SESSION = 'app_session';
+  const DB_TODOS = 'app_todos';
+  const DB_DIRECTORY = 'app_user_directory';
+  const DB_CASES = 'app_fraud_cases';
+
+  // Demo-only user directory for the Admin > Users search/detail lab —
+  // unrelated to the login accounts in DB_USERS.
+  const DEMO_DIRECTORY = [
+    { id: 'u-1001', fullName: 'Alice Martin', username: 'amartin', email: 'alice.martin@example.com', role: 'admin', status: 'active', department: 'Fraud', riskScore: 12, notes: 'Senior analyst, L3 clearance.', createdAt: '2025-02-11' },
+    { id: 'u-1002', fullName: 'Bilal Haddad', username: 'bhaddad', email: 'b.haddad@example.com', role: 'analyst', status: 'active', department: 'Fraud', riskScore: 34, notes: 'Handles chargeback escalations.', createdAt: '2025-04-03' },
+    { id: 'u-1003', fullName: 'Chloe Dupont', username: 'cdupont', email: 'chloe.dupont@example.com', role: 'user', status: 'pending', department: 'Support', riskScore: 5, notes: 'Awaiting background check.', createdAt: '2025-09-18' },
+    { id: 'u-1004', fullName: 'David Okafor', username: 'dokafor', email: 'david.okafor@example.com', role: 'analyst', status: 'suspended', department: 'Risk', riskScore: 78, notes: 'Suspended pending review of ticket #4921.', createdAt: '2024-11-27' },
+    { id: 'u-1005', fullName: 'Elena Petrova', username: 'epetrova', email: 'elena.petrova@example.com', role: 'admin', status: 'active', department: 'Platform', riskScore: 9, notes: 'On-call platform admin.', createdAt: '2025-01-05' },
+    { id: 'u-1006', fullName: 'Farouk Benali', username: 'fbenali', email: 'f.benali@example.com', role: 'user', status: 'active', department: 'Support', riskScore: 21, notes: '', createdAt: '2025-06-30' },
+    { id: 'u-1007', fullName: 'Grace Lindqvist', username: 'glindqvist', email: 'grace.lindqvist@example.com', role: 'analyst', status: 'pending', department: 'Fraud', riskScore: 44, notes: 'New hire, training in progress.', createdAt: '2025-10-02' },
+    { id: 'u-1008', fullName: 'Hassan Ibrahim', username: 'hibrahim', email: 'h.ibrahim@example.com', role: 'user', status: 'suspended', department: 'Risk', riskScore: 61, notes: 'Access revoked after audit finding.', createdAt: '2025-03-14' },
+  ];
+
+  // Demo-only fraud case queue for the Operations > Cases search/detail lab.
+  const DEMO_CASES = [
+    { id: 'case-5001', caseRef: 'CASE-5001', merchant: 'Nova Electronics', amount: 482.50, currency: 'USD', status: 'open', riskScore: 71, priority: 3, openedAt: '2025-10-21', transactionId: 'txn_88213f', cardLast4: '4242', ip: '203.0.113.44', threeDsVerified: false, gatewayResponse: '00-approved', flagVelocity: true, flagGeoMismatch: false, flagNewDevice: true, recommendedAction: 'review', investigator: '', notes: '' },
+    { id: 'case-5002', caseRef: 'CASE-5002', merchant: 'Cedar & Vine Wines', amount: 129.00, currency: 'EUR', status: 'investigating', riskScore: 55, priority: 2, openedAt: '2025-10-18', transactionId: 'txn_7a9c21', cardLast4: '1881', ip: '198.51.100.9', threeDsVerified: true, gatewayResponse: '00-approved', flagVelocity: false, flagGeoMismatch: true, flagNewDevice: false, recommendedAction: 'review', investigator: 'Alice Martin', notes: 'Customer confirmed travel abroad.' },
+    { id: 'case-5003', caseRef: 'CASE-5003', merchant: 'Pixel Forge Games', amount: 899.99, currency: 'USD', status: 'escalated', riskScore: 92, priority: 5, openedAt: '2025-10-25', transactionId: 'txn_f10bde', cardLast4: '0032', ip: '192.0.2.77', threeDsVerified: false, gatewayResponse: '05-declined', flagVelocity: true, flagGeoMismatch: true, flagNewDevice: true, recommendedAction: 'block', investigator: 'Bilal Haddad', notes: 'Likely card testing pattern, 6 attempts in 4 minutes.' },
+    { id: 'case-5004', caseRef: 'CASE-5004', merchant: 'Everline Logistics', amount: 2100.00, currency: 'USD', status: 'open', riskScore: 38, priority: 1, openedAt: '2025-10-29', transactionId: 'txn_c44190', cardLast4: '7765', ip: '203.0.113.201', threeDsVerified: true, gatewayResponse: '00-approved', flagVelocity: false, flagGeoMismatch: false, flagNewDevice: false, recommendedAction: 'approve', investigator: '', notes: '' },
+    { id: 'case-5005', caseRef: 'CASE-5005', merchant: 'Nova Electronics', amount: 56.20, currency: 'USD', status: 'closed', riskScore: 14, priority: 1, openedAt: '2025-09-30', transactionId: 'txn_2b7710', cardLast4: '4242', ip: '203.0.113.44', threeDsVerified: true, gatewayResponse: '00-approved', flagVelocity: false, flagGeoMismatch: false, flagNewDevice: false, recommendedAction: 'approve', investigator: 'Elena Petrova', notes: 'Reviewed, false positive — closed.' },
+    { id: 'case-5006', caseRef: 'CASE-5006', merchant: 'Brightline Travel', amount: 1340.75, currency: 'GBP', status: 'investigating', riskScore: 64, priority: 3, openedAt: '2025-10-15', transactionId: 'txn_9d5aa2', cardLast4: '3390', ip: '198.51.100.230', threeDsVerified: false, gatewayResponse: '00-approved', flagVelocity: false, flagGeoMismatch: true, flagNewDevice: true, recommendedAction: 'review', investigator: 'Grace Lindqvist', notes: 'Awaiting customer callback.' },
+    { id: 'case-5007', caseRef: 'CASE-5007', merchant: 'Urban Fit Supply', amount: 74.40, currency: 'USD', status: 'open', riskScore: 26, priority: 2, openedAt: '2025-10-27', transactionId: 'txn_11ffea', cardLast4: '5544', ip: '203.0.113.90', threeDsVerified: true, gatewayResponse: '00-approved', flagVelocity: false, flagGeoMismatch: false, flagNewDevice: true, recommendedAction: 'approve', investigator: '', notes: '' },
+    { id: 'case-5008', caseRef: 'CASE-5008', merchant: 'Pixel Forge Games', amount: 450.00, currency: 'USD', status: 'escalated', riskScore: 88, priority: 5, openedAt: '2025-10-30', transactionId: 'txn_60a9cd', cardLast4: '0032', ip: '192.0.2.81', threeDsVerified: false, gatewayResponse: '05-declined', flagVelocity: true, flagGeoMismatch: false, flagNewDevice: true, recommendedAction: 'block', investigator: 'David Okafor', notes: 'Same card as CASE-5003, different IP.' },
+  ];
+
+  function readUsers() {
+    return JSON.parse(localStorage.getItem(DB_USERS) || '{}');
+  }
+  function writeUsers(users) {
+    localStorage.setItem(DB_USERS, JSON.stringify(users));
+  }
+  function readTodos() {
+    return JSON.parse(localStorage.getItem(DB_TODOS) || '{}');
+  }
+  function writeTodos(todos) {
+    localStorage.setItem(DB_TODOS, JSON.stringify(todos));
+  }
+  function readDirectory() {
+    return JSON.parse(localStorage.getItem(DB_DIRECTORY) || '[]');
+  }
+  function readCases() {
+    return JSON.parse(localStorage.getItem(DB_CASES) || '[]');
+  }
+  // naive hash so passwords aren't stored in plaintext in localStorage
+  async function hash(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function delay(ms = 300) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  return {
+    async ensureSeedUser() {
+      const users = readUsers();
+      users['admin'] = { passwordHash: await hash('admin') };
+      writeUsers(users);
+    },
+
+    ensureSeedDirectory() {
+      if (!localStorage.getItem(DB_DIRECTORY)) {
+        localStorage.setItem(DB_DIRECTORY, JSON.stringify(DEMO_DIRECTORY));
+      }
+    },
+
+    ensureSeedCases() {
+      if (!localStorage.getItem(DB_CASES)) {
+        localStorage.setItem(DB_CASES, JSON.stringify(DEMO_CASES));
+      }
+    },
+
+    async register(username, password) {
+      await delay();
+      const users = readUsers();
+      if (users[username]) {
+        throw new Error('Username already taken');
+      }
+      users[username] = { passwordHash: await hash(password) };
+      writeUsers(users);
+      return { username };
+    },
+
+    async login(username, password) {
+      await delay();
+      const users = readUsers();
+      const user = users[username];
+      if (!user || user.passwordHash !== await hash(password)) {
+        throw new Error('Invalid username or password');
+      }
+      const token = crypto.randomUUID();
+      localStorage.setItem(DB_SESSION, JSON.stringify({ username, token }));
+      return { username, token };
+    },
+
+    async logout() {
+      await delay(100);
+      localStorage.removeItem(DB_SESSION);
+    },
+
+    getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(DB_SESSION) || 'null');
+      } catch {
+        return null;
+      }
+    },
+
+    async searchDirectory(params) {
+      await delay(200);
+      const all = readDirectory();
+      return all.filter(r => {
+        if (params.q) {
+          const haystack = (r.fullName + ' ' + r.username + ' ' + r.email).toLowerCase();
+          if (!haystack.includes(params.q)) return false;
+        }
+        if (params.role && r.role !== params.role) return false;
+        if (params.status && r.status !== params.status) return false;
+        if (params.department && !r.department.toLowerCase().includes(params.department)) return false;
+        return true;
+      });
+    },
+
+    async getDirectoryUser(id) {
+      await delay(150);
+      return readDirectory().find(r => r.id === id) || null;
+    },
+
+    async searchCases(params) {
+      await delay(200);
+      const all = readCases();
+      return all.filter(c => {
+        if (params.q) {
+          const haystack = (c.caseRef + ' ' + c.merchant).toLowerCase();
+          if (!haystack.includes(params.q)) return false;
+        }
+        if (params.status && c.status !== params.status) return false;
+        if (params.minRisk && c.riskScore < Number(params.minRisk)) return false;
+        if (params.openedAfter && c.openedAt < params.openedAfter) return false;
+        return true;
+      });
+    },
+
+    async getCase(id) {
+      await delay(150);
+      return readCases().find(c => c.id === id) || null;
+    },
+
+    async listTodos(username) {
+      await delay(150);
+      const todos = readTodos();
+      return todos[username] || [];
+    },
+
+    async addTodo(username, text) {
+      await delay(150);
+      const todos = readTodos();
+      if (!todos[username]) todos[username] = [];
+      const todo = { id: crypto.randomUUID(), text, done: false };
+      todos[username].push(todo);
+      writeTodos(todos);
+      return todo;
+    },
+
+    async toggleTodo(username, id) {
+      await delay(100);
+      const todos = readTodos();
+      const list = todos[username] || [];
+      const item = list.find(t => t.id === id);
+      if (item) item.done = !item.done;
+      writeTodos(todos);
+      return item;
+    },
+
+    async deleteTodo(username, id) {
+      await delay(100);
+      const todos = readTodos();
+      todos[username] = (todos[username] || []).filter(t => t.id !== id);
+      writeTodos(todos);
+    }
+  };
+})();
+
+/* ---- UI wiring ---- */
+const el = id => document.getElementById(id);
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function showMsg(target, text, type) {
+  target.textContent = text;
+  target.className = 'msg ' + type;
+}
+function clearMsg(target) {
+  target.textContent = '';
+  target.className = 'msg';
+}
+
+function showToast(message, type) {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (type ? ' toast-' + type : '');
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 2600);
+}
+
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    throw new Error('Clipboard API unavailable (not a secure context)');
+  } catch {
+    try {
+      const tmp = document.createElement('textarea');
+      tmp.value = text;
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.focus();
+      tmp.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(tmp);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function showAuth() {
+  el('auth-shell').classList.remove('hidden');
+  el('app-shell').classList.remove('active');
+}
+function showApp(username) {
+  el('auth-shell').classList.add('hidden');
+  el('app-shell').classList.add('active');
+  el('current-user').textContent = username;
+  renderRoute();
+}
+
+// Toggle login/register cards
+el('go-register').addEventListener('click', () => {
+  el('login-card').style.display = 'none';
+  el('register-card').style.display = 'block';
+});
+el('go-login').addEventListener('click', () => {
+  el('register-card').style.display = 'none';
+  el('login-card').style.display = 'block';
+});
+
+// Register
+el('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = el('register-msg');
+  clearMsg(msg);
+  const username = el('register-username').value.trim();
+  const password = el('register-password').value;
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  try {
+    await api.register(username, password);
+    showMsg(msg, 'Account created! You can log in now.', 'success');
+    e.target.reset();
+    setTimeout(() => {
+      el('register-card').style.display = 'none';
+      el('login-card').style.display = 'block';
+    }, 900);
+  } catch (err) {
+    showMsg(msg, err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Login — on success, wait a few seconds then redirect to the fraud dashboard route
+const REDIRECT_DELAY_MS = 6000;
+el('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = el('login-msg');
+  clearMsg(msg);
+  const username = el('login-username').value.trim();
+  const password = el('login-password').value;
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  try {
+    const session = await api.login(username, password);
+    e.target.reset();
+
+    let secondsLeft = Math.round(REDIRECT_DELAY_MS / 1000);
+    showMsg(msg, `Login successful! Redirecting to dashboard in ${secondsLeft}s...`, 'success');
+    const countdown = setInterval(() => {
+      secondsLeft -= 1;
+      if (secondsLeft > 0) {
+        showMsg(msg, `Login successful! Redirecting to dashboard in ${secondsLeft}s...`, 'success');
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      clearInterval(countdown);
+      location.hash = '#/op/fraud';
+      showApp(session.username);
+      btn.disabled = false;
+    }, REDIRECT_DELAY_MS);
+  } catch (err) {
+    showMsg(msg, err.message, 'error');
+    btn.disabled = false;
+  }
+});
+
+// Logout
+el('logout-btn').addEventListener('click', async () => {
+  await api.logout();
+  location.hash = '';
+  showAuth();
+});
+
+function currentUsername() {
+  const session = api.getSession();
+  return session ? session.username : null;
+}
+
+/* ---- Workspaces & routing ----
+ * Three top-level workspaces (Operations / Admin / Parameters), each with
+ * its own sidebar of pages and its own content screens.
+ */
+const WORKSPACES = {
+  operations: {
+    label: 'Operations',
+    items: [
+      { label: 'Fraud', route: '/op/fraud' },
+      { label: 'Cases', route: '/op/fraud-cases' },
+      { label: 'Todos', route: '/op/todo' },
+    ],
+  },
+  admin: {
+    label: 'Admin',
+    items: [
+      { label: 'Users', route: '/admin/users' },
+    ],
+  },
+  params: {
+    label: 'Parameters',
+    items: [
+      { label: 'General', route: '/param/general' },
+    ],
+  },
+};
+
+const PAGE_RENDERERS = {
+  '/op/fraud': renderFraudPage,
+  '/op/fraud-cases': renderFraudCasesPage,
+  '/admin/users': renderAdminUsersPage,
+  '/param/general': renderParamGeneralPage,
+  '/op/todo': renderTodosPage,
+};
+
+function currentPath() {
+  let h = location.hash.replace(/^#/, '');
+  if (!h) return '/op/fraud';
+  if (!h.startsWith('/')) h = '/' + h;
+  return h;
+}
+
+// Resolves a path to a renderer + params, supporting dynamic detail routes
+// (/admin/users/<id>, /op/fraud-cases/<id>) alongside the static map.
+function resolveRoute(path) {
+  if (PAGE_RENDERERS[path]) {
+    return { renderer: PAGE_RENDERERS[path], params: {} };
+  }
+  const userDetailMatch = path.match(/^\/admin\/users\/([^/]+)$/);
+  if (userDetailMatch) {
+    return { renderer: renderAdminUserDetailPage, params: { id: decodeURIComponent(userDetailMatch[1]) } };
+  }
+  const caseDetailMatch = path.match(/^\/op\/fraud-cases\/([^/]+)$/);
+  if (caseDetailMatch) {
+    return { renderer: renderFraudCaseDetailPage, params: { id: decodeURIComponent(caseDetailMatch[1]) } };
+  }
+  return null;
+}
+
+function workspaceKeyForPath(path) {
+  if (path.startsWith('/admin/')) return 'admin';
+  if (path.startsWith('/param/')) return 'params';
+  return 'operations'; // /op/*, and any unknown route fall back here
+}
+
+// Among a workspace's nav items, picks the longest route that matches the
+// current path (exact or prefix), so e.g. "/op/fraud-cases/case-5001"
+// highlights "Cases" rather than also lighting up "Fraud".
+function bestMatchingRoute(path, items) {
+  let best = null;
+  for (const item of items) {
+    if (path === item.route || path.startsWith(item.route + '/')) {
+      if (!best || item.route.length > best.length) best = item.route;
+    }
+  }
+  return best;
+}
+
+function renderSidebar(path) {
+  const wsKey = workspaceKeyForPath(path);
+  const ws = WORKSPACES[wsKey];
+  const best = bestMatchingRoute(path, ws.items);
+
+  document.querySelectorAll('.workspace-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.workspace === wsKey);
+  });
+
+  el('sidebar-section-label').textContent = ws.label;
+  el('sidebar-nav').innerHTML = ws.items.map(item => {
+    const isActive = item.route === best;
+    return `<a href="#${item.route}" class="nav-link${isActive ? ' active' : ''}" data-route="${item.route}">${escapeHtml(item.label)}</a>`;
+  }).join('');
+}
+
+el('sidebar-search-input').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#sidebar-nav .nav-link').forEach(a => {
+    a.style.display = a.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+async function renderRoute() {
+  if (!currentUsername()) {
+    showAuth();
+    return;
+  }
+  const path = currentPath();
+  renderSidebar(path);
+  const container = el('route-content');
+  const resolved = resolveRoute(path);
+  if (resolved) {
+    await resolved.renderer(container, resolved.params);
+  } else {
+    container.innerHTML = `
+      <div class="panel">
+        <h2>Not found</h2>
+        <p class="subtitle">No page is registered for this route.</p>
+        <p class="route-note">Route: <code>${escapeHtml(location.hash || '#/')}</code></p>
+      </div>
+    `;
+  }
+}
+
+window.addEventListener('hashchange', renderRoute);
+
+function renderFraudPage(container) {
+  container.innerHTML = `
+    <div class="panel">
+      <h2>Fraud Operations</h2>
+      <p class="subtitle">Live overview (demo data)</p>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Flagged transactions</div><div class="stat-value">12</div></div>
+        <div class="stat-card"><div class="stat-label">Avg risk score</div><div class="stat-value">0.42</div></div>
+        <div class="stat-card"><div class="stat-label">Blocked today</div><div class="stat-value">3</div></div>
+      </div>
+      <a href="#/op/fraud-cases" class="icon-btn" style="margin-top:16px;">View fraud cases &rarr;</a>
+      <p class="route-note">Route: <code>#/op/fraud</code> · Workspace: <strong>Operations</strong></p>
+    </div>
+  `;
+}
+
+/* ---- Operations > Cases: search + double-click to open ---- */
+async function renderFraudCasesPage(container) {
+  container.innerHTML = `
+    <div class="panel">
+      <h2>Fraud Cases</h2>
+      <p class="subtitle">Search the case queue (demo data)</p>
+      <form id="case-search-form">
+        <div class="search-row">
+          <div class="search-field">
+            <label for="case-search-q">Case ref / merchant</label>
+            <input type="text" id="case-search-q" placeholder="e.g. Nova" />
+          </div>
+          <div class="search-field">
+            <label for="case-search-status">Status</label>
+            <select id="case-search-status">
+              <option value="">Any</option>
+              <option value="open">Open</option>
+              <option value="investigating">Investigating</option>
+              <option value="escalated">Escalated</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <div class="search-field">
+            <label for="case-search-risk">Min risk score</label>
+            <input type="number" id="case-search-risk" min="0" max="100" placeholder="0" />
+          </div>
+          <div class="search-field">
+            <label for="case-search-date">Opened after</label>
+            <input type="date" id="case-search-date" />
+          </div>
+        </div>
+        <button type="submit" class="search-submit">Search</button>
+      </form>
+      <div id="case-search-results"></div>
+      <p class="field-hint" style="margin-top:14px;">Click a row to select it, double-click to open the full record, or press <code>Enter</code> on a focused row.</p>
+      <p class="route-note">Route: <code>#/op/fraud-cases</code> · Workspace: <strong>Operations</strong></p>
+    </div>
+  `;
+
+  el('case-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    runCaseSearch();
+  });
+
+  await runCaseSearch();
+}
+
+async function runCaseSearch() {
+  const params = {
+    q: el('case-search-q').value.trim().toLowerCase(),
+    status: el('case-search-status').value,
+    minRisk: el('case-search-risk').value,
+    openedAfter: el('case-search-date').value,
+  };
+  const results = await api.searchCases(params);
+  renderCaseResults(results);
+}
+
+function renderCaseResults(results) {
+  const target = el('case-search-results');
+  if (!target) return; // navigated away before this resolved
+  if (results.length === 0) {
+    target.innerHTML = '<div class="empty-state">No matching cases.</div>';
+    return;
+  }
+  target.innerHTML = `
+    <ul class="result-list">
+      ${results.map(c => `
+        <li class="result-row" data-id="${escapeHtml(c.id)}" tabindex="0">
+          <div class="result-main">
+            <span class="result-name">${escapeHtml(c.caseRef)} · ${escapeHtml(c.merchant)}</span>
+            <span class="result-sub">${escapeHtml(c.currency)} ${c.amount.toFixed(2)} · opened ${escapeHtml(c.openedAt)}</span>
+          </div>
+          <div class="result-meta">
+            <span class="result-tag">risk ${c.riskScore}</span>
+            <span class="badge status-${escapeHtml(c.status)}">${escapeHtml(c.status)}</span>
+          </div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+  target.querySelectorAll('.result-row').forEach(row => {
+    const open = () => { location.hash = '#/op/fraud-cases/' + encodeURIComponent(row.dataset.id); };
+    row.addEventListener('click', () => {
+      target.querySelectorAll('.result-row.selected').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+    });
+    row.addEventListener('dblclick', open);
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+  });
+}
+
+/* ---- Operations > Cases > detail: small sidebar to switch between
+ * field groups, plus more input-type variety (number, date, range,
+ * datalist autocomplete, contenteditable, file) for locator practice.
+ */
+async function renderFraudCaseDetailPage(container, params) {
+  const c = await api.getCase(params.id);
+  if (!c) {
+    container.innerHTML = `
+      <div class="panel">
+        <a href="#/op/fraud-cases" class="nav-link back-link">&larr; Back to cases</a>
+        <h2>Case not found</h2>
+        <p class="subtitle">No record matches id <code>${escapeHtml(params.id)}</code>.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="panel">
+      <a href="#/op/fraud-cases" class="nav-link back-link">&larr; Back to cases</a>
+      <h2>${escapeHtml(c.caseRef)} &middot; ${escapeHtml(c.merchant)}</h2>
+      <p class="subtitle">Case detail (demo data) — use the sidebar to switch field groups</p>
+      <div class="msg" id="case-msg"></div>
+
+      <div class="case-detail-layout">
+        <div class="group-nav" id="group-nav">
+          <button type="button" class="group-nav-btn active" data-group="info">Case info</button>
+          <button type="button" class="group-nav-btn" data-group="txn">Transaction</button>
+          <button type="button" class="group-nav-btn" data-group="risk">Risk &amp; flags</button>
+          <button type="button" class="group-nav-btn" data-group="notes">Investigator notes</button>
+        </div>
+        <div class="group-panels">
+          <form id="case-form">
+            <div class="group-panel" data-group-panel="info">
+              <div class="field-row">
+                <label class="field-label" for="case-ref">Case reference</label>
+                <input id="case-ref" name="caseRef" type="text" value="${escapeHtml(c.caseRef)}" readonly />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-merchant">Merchant</label>
+                <input id="case-merchant" name="merchant" type="text" value="${escapeHtml(c.merchant)}" required autofocus />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-amount">Amount</label>
+                <input id="case-amount" name="amount" type="number" step="0.01" value="${c.amount}" />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-currency">Currency</label>
+                <select id="case-currency">
+                  <option value="USD" ${c.currency === 'USD' ? 'selected' : ''}>USD</option>
+                  <option value="EUR" ${c.currency === 'EUR' ? 'selected' : ''}>EUR</option>
+                  <option value="GBP" ${c.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-priority">Priority: <span id="case-priority-output">${c.priority}</span>/5</label>
+                <input type="range" id="case-priority" min="1" max="5" value="${c.priority}" />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-opened">Opened</label>
+                <input id="case-opened" type="date" value="${escapeHtml(c.openedAt)}" />
+              </div>
+            </div>
+
+            <div class="group-panel" data-group-panel="txn" hidden>
+              <div class="field-row">
+                <div class="field-label">Transaction ID</div>
+                <input name="transactionId" type="text" value="${escapeHtml(c.transactionId)}" />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-card-last4">Card last 4</label>
+                <input id="case-card-last4" type="text" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" value="${escapeHtml(c.cardLast4)}" />
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-ip">IP address</label>
+                <input id="case-ip" type="text" value="${escapeHtml(c.ip)}" />
+              </div>
+              <div class="field-row">
+                <div class="checkbox-row"><input type="checkbox" id="case-3ds" ${c.threeDsVerified ? 'checked' : ''} /><label for="case-3ds">3-D Secure verified</label></div>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-gateway">Gateway response</label>
+                <input id="case-gateway" type="text" value="${escapeHtml(c.gatewayResponse)}" disabled />
+              </div>
+              <fieldset disabled style="border:1px solid var(--border);border-radius:8px;padding:12px;margin:0 0 14px;">
+                <legend style="font-size:12px;color:var(--muted);padding:0 4px;">Network snapshot (read-only)</legend>
+                <div class="field-row">
+                  <label class="field-label" for="case-acquirer">Acquirer</label>
+                  <input id="case-acquirer" type="text" value="Meridian Acquiring" />
+                </div>
+                <div class="field-row" style="margin-bottom:0;">
+                  <label class="field-label" for="case-processor-route">Processor route</label>
+                  <input id="case-processor-route" type="text" value="route-eu-west-2" />
+                </div>
+              </fieldset>
+              <input type="hidden" name="merchant_internal_id" value="mid_${escapeHtml(c.id)}" />
+            </div>
+
+            <div class="group-panel" data-group-panel="risk" hidden>
+              <div class="field-row">
+                <label class="field-label" for="case-risk">Risk score</label>
+                <input id="case-risk" type="text" data-testid="case-risk-score" value="${c.riskScore}" readonly />
+              </div>
+              <div class="field-row">
+                <div class="field-label">Flags</div>
+                <div class="checkbox-row"><input type="checkbox" id="flag-all" /><label for="flag-all"><strong>Select all</strong></label></div>
+                <div class="checkbox-row"><input type="checkbox" id="flag-velocity" class="flag-item" ${c.flagVelocity ? 'checked' : ''} /><label for="flag-velocity">Velocity spike</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="flag-geo" class="flag-item" ${c.flagGeoMismatch ? 'checked' : ''} /><label for="flag-geo">Geo mismatch</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="flag-device" class="flag-item" ${c.flagNewDevice ? 'checked' : ''} /><label for="flag-device">New device</label></div>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-tags">Related tags</label>
+                <select id="case-tags" multiple size="4">
+                  <option value="card-testing" ${c.flagVelocity ? 'selected' : ''}>card-testing</option>
+                  <option value="geo-mismatch-history" ${c.flagGeoMismatch ? 'selected' : ''}>geo-mismatch-history</option>
+                  <option value="device-fingerprint-match">device-fingerprint-match</option>
+                  <option value="chargeback-history">chargeback-history</option>
+                </select>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-external-risk">External risk feed</label>
+                <input id="case-external-risk" type="text" value="Loading..." disabled />
+              </div>
+              <div class="field-row">
+                <div class="field-label">Recommended action</div>
+                <div class="radio-row"><input type="radio" id="action-approve" name="case-action" value="approve" ${c.recommendedAction === 'approve' ? 'checked' : ''} /><label for="action-approve">Approve</label></div>
+                <div class="radio-row"><input type="radio" id="action-review" name="case-action" value="review" ${c.recommendedAction === 'review' ? 'checked' : ''} /><label for="action-review">Review</label></div>
+                <div class="radio-row"><input type="radio" id="action-block" name="case-action" value="block" ${c.recommendedAction === 'block' ? 'checked' : ''} /><label for="action-block">Block</label></div>
+              </div>
+            </div>
+
+            <div class="group-panel" data-group-panel="notes" hidden>
+              <div class="field-row">
+                <label class="field-label" for="case-investigator">Assigned investigator</label>
+                <input id="case-investigator" type="text" list="investigators-list" value="${escapeHtml(c.investigator)}" placeholder="Start typing a name..." />
+                <datalist id="investigators-list">
+                  <option value="Alice Martin"></option>
+                  <option value="Bilal Haddad"></option>
+                  <option value="David Okafor"></option>
+                  <option value="Elena Petrova"></option>
+                  <option value="Grace Lindqvist"></option>
+                </datalist>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-notes">Notes</label>
+                <div id="case-notes" contenteditable="true" style="min-height:70px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);font-size:14px;">${escapeHtml(c.notes)}</div>
+              </div>
+              <div class="field-row">
+                <label class="field-label" for="case-attachment">Attach evidence</label>
+                <input id="case-attachment" type="file" multiple />
+              </div>
+            </div>
+
+            <div class="field-row detail-actions">
+              <button id="case-save-btn">Save</button>
+              <button type="button" id="case-cancel-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <p class="route-note">Route: <code>#/op/fraud-cases/${escapeHtml(c.id)}</code> · Workspace: <strong>Operations</strong></p>
+    </div>
+  `;
+
+  // Sidebar group switcher — pure UI state, no route change
+  document.querySelectorAll('.group-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.group-nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const target = btn.dataset.group;
+      document.querySelectorAll('.group-panel').forEach(panel => {
+        panel.hidden = panel.dataset.groupPanel !== target;
+      });
+    });
+  });
+
+  const priorityRange = el('case-priority');
+  priorityRange.addEventListener('input', () => {
+    el('case-priority-output').textContent = priorityRange.value;
+  });
+
+  // "Select all" flags checkbox — tri-state (indeterminate) when some but
+  // not all of the child flags are checked; indeterminate can only be set
+  // via JS, never via an HTML attribute.
+  const flagAll = el('flag-all');
+  const flagItems = Array.from(document.querySelectorAll('.flag-item'));
+  function syncFlagAll() {
+    const checkedCount = flagItems.filter(f => f.checked).length;
+    flagAll.checked = checkedCount === flagItems.length;
+    flagAll.indeterminate = checkedCount > 0 && checkedCount < flagItems.length;
+  }
+  syncFlagAll();
+  flagAll.addEventListener('change', () => {
+    flagItems.forEach(f => { f.checked = flagAll.checked; });
+    flagAll.indeterminate = false;
+  });
+  flagItems.forEach(f => f.addEventListener('change', syncFlagAll));
+
+  // External risk feed — simulates a value that loads asynchronously after
+  // the page is already interactive (an explicit-wait / flaky-test scenario).
+  setTimeout(() => {
+    const externalRisk = el('case-external-risk');
+    if (!externalRisk) return; // user navigated away before this resolved
+    externalRisk.value = 'clear — no external matches';
+    externalRisk.disabled = false;
+  }, 900);
+
+  el('case-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    showMsg(el('case-msg'), 'Saved (demo only — not persisted).', 'success');
+  });
+  el('case-cancel-btn').addEventListener('click', () => {
+    location.hash = '#/op/fraud-cases';
+  });
+}
+
+async function renderAdminUsersPage(container) {
+  container.innerHTML = `
+    <div class="panel">
+      <h2>Admin · Users</h2>
+      <p class="subtitle">Search the user directory (demo data)</p>
+      <form id="user-search-form">
+        <div class="search-row">
+          <div class="search-field">
+            <label for="search-q">Name / username / email</label>
+            <input type="text" id="search-q" name="q" placeholder="e.g. martin" />
+          </div>
+          <div class="search-field">
+            <label for="search-role">Role</label>
+            <select id="search-role" name="role">
+              <option value="">Any</option>
+              <option value="admin">Admin</option>
+              <option value="analyst">Analyst</option>
+              <option value="user">User</option>
+            </select>
+          </div>
+          <div class="search-field">
+            <label for="search-status">Status</label>
+            <select id="search-status" name="status">
+              <option value="">Any</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <div class="search-field">
+            <label for="search-department">Department</label>
+            <input type="text" id="search-department" name="department" placeholder="e.g. Fraud" />
+          </div>
+        </div>
+        <button type="submit" class="search-submit">Search</button>
+      </form>
+      <div id="search-results"></div>
+      <p class="route-note">Route: <code>#/admin/users</code> · Workspace: <strong>Admin</strong></p>
+    </div>
+  `;
+
+  el('user-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    runUserSearch();
+  });
+
+  await runUserSearch();
+}
+
+async function runUserSearch() {
+  const params = {
+    q: el('search-q').value.trim().toLowerCase(),
+    role: el('search-role').value,
+    status: el('search-status').value,
+    department: el('search-department').value.trim().toLowerCase(),
+  };
+  const results = await api.searchDirectory(params);
+  renderUserResults(results);
+}
+
+function renderUserResults(results) {
+  const target = el('search-results');
+  if (!target) return; // user navigated away before this resolved
+  if (results.length === 0) {
+    target.innerHTML = '<div class="empty-state">No matching users.</div>';
+    return;
+  }
+  target.innerHTML = `
+    <ul class="result-list">
+      ${results.map(u => `
+        <li class="result-row" data-id="${escapeHtml(u.id)}" tabindex="0">
+          <div class="result-main">
+            <span class="result-name">${escapeHtml(u.fullName)}</span>
+            <span class="result-sub">${escapeHtml(u.username)} · ${escapeHtml(u.email)}</span>
+          </div>
+          <div class="result-meta">
+            <span class="result-tag">${escapeHtml(u.role)}</span>
+            <span class="badge status-${escapeHtml(u.status)}">${escapeHtml(u.status)}</span>
+          </div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+  target.querySelectorAll('.result-row').forEach(row => {
+    const go = () => { location.hash = '#/admin/users/' + encodeURIComponent(row.dataset.id); };
+    row.addEventListener('click', go);
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  });
+}
+
+/* ---- Admin > Users > detail: a deliberate grab-bag of input edge cases
+ * for test-automation practice (locator strategies, visibility states,
+ * labelling, duplicate ids, etc). Everything here is demo data only.
+ */
+async function renderAdminUserDetailPage(container, params) {
+  const user = await api.getDirectoryUser(params.id);
+  if (!user) {
+    container.innerHTML = `
+      <div class="panel">
+        <a href="#/admin/users" class="nav-link back-link">&larr; Back to search</a>
+        <h2>User not found</h2>
+        <p class="subtitle">No record matches id <code>${escapeHtml(params.id)}</code>.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const fakeCsrf = 'tok_' + user.id.replace('u-', '') + '_demo';
+
+  container.innerHTML = `
+    <div class="panel">
+      <a href="#/admin/users" class="nav-link back-link">&larr; Back to search</a>
+      <h2>${escapeHtml(user.fullName)}</h2>
+      <p class="subtitle">Record detail (demo data) — a grab-bag of input edge cases for locator practice</p>
+      <div class="msg" id="detail-msg"></div>
+
+      <form id="detail-form">
+        <input type="hidden" id="detail-record-id" value="${escapeHtml(user.id)}" />
+        <input type="hidden" name="csrf_token" value="${escapeHtml(fakeCsrf)}" />
+
+        <div class="field-group-title">Basic info</div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-fullname">Full name</label>
+          <input id="detail-fullname" name="fullName" type="text" value="${escapeHtml(user.fullName)}" required autofocus />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-created">Record created</label>
+          <input id="detail-created" type="text" value="${escapeHtml(user.createdAt)}" readonly />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-evidence">Attachments</label>
+          <input id="detail-evidence" type="file" multiple />
+        </div>
+
+        <div class="field-row">
+          <div class="field-label">Username</div>
+          <input name="username" type="text" value="${escapeHtml(user.username)}" />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-email">Email</label>
+          <input id="detail-email" type="email" value="${escapeHtml(user.email)}" />
+        </div>
+
+        <div class="field-row">
+          <div class="field-label">Nickname</div>
+          <input type="text" placeholder="No nickname on file" />
+        </div>
+
+        <div class="field-row">
+          <div class="field-label">Internal reference</div>
+          <input type="text" aria-label="Internal reference" value="REF-${escapeHtml(user.id)}" />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-risk">Risk score</label>
+          <input id="detail-risk" type="text" data-testid="user-risk-score" value="${escapeHtml(String(user.riskScore))}" readonly />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-dept">Department</label>
+          <input id="detail-dept" type="text" value="${escapeHtml(user.department)}" disabled />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-notes">Notes</label>
+          <textarea id="detail-notes" disabled>${escapeHtml(user.notes || '')}</textarea>
+        </div>
+
+        <div class="field-group-title">Status &amp; role</div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-status">Status</label>
+          <select id="detail-status" name="status">
+            <option value="active" ${user.status === 'active' ? 'selected' : ''}>Active</option>
+            <option value="pending" ${user.status === 'pending' ? 'selected' : ''}>Pending</option>
+            <option value="suspended" ${user.status === 'suspended' ? 'selected' : ''}>Suspended</option>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="field-label">Role</div>
+          <div class="radio-row"><input type="radio" id="role-admin" name="detail-role" value="admin" ${user.role === 'admin' ? 'checked' : ''} /><label for="role-admin">Admin</label></div>
+          <div class="radio-row"><input type="radio" id="role-analyst" name="detail-role" value="analyst" ${user.role === 'analyst' ? 'checked' : ''} /><label for="role-analyst">Analyst</label></div>
+          <div class="radio-row"><input type="radio" id="role-user" name="detail-role" value="user" ${user.role === 'user' ? 'checked' : ''} /><label for="role-user">User</label></div>
+        </div>
+
+        <div class="field-row">
+          <div class="checkbox-row"><input type="checkbox" id="detail-flags-all" /><label for="detail-flags-all"><strong>Select all</strong></label></div>
+          <div class="checkbox-row"><input type="checkbox" id="detail-active" class="detail-flag-item" ${user.status === 'active' ? 'checked' : ''} /><label for="detail-active">Account active</label></div>
+          <div class="checkbox-row"><input type="checkbox" id="detail-email-verified" class="detail-flag-item" checked /><label for="emailVerified">Email verified</label></div>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-permissions">Permissions</label>
+          <select id="detail-permissions" multiple size="4">
+            <option value="read" selected>read</option>
+            <option value="write" ${user.role !== 'user' ? 'selected' : ''}>write</option>
+            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>admin</option>
+            <option value="billing">billing</option>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-external-check">External verification</label>
+          <input id="detail-external-check" type="text" value="Loading..." disabled />
+        </div>
+
+        <fieldset disabled style="border:1px solid var(--border);border-radius:8px;padding:12px;margin:0 0 14px;">
+          <legend style="font-size:12px;color:var(--muted);padding:0 4px;">HR system snapshot (read-only)</legend>
+          <div class="field-row">
+            <label class="field-label" for="detail-manager">Manager</label>
+            <input id="detail-manager" type="text" value="Not on file" />
+          </div>
+          <div class="field-row" style="margin-bottom:0;">
+            <label class="field-label" for="detail-cost-center">Cost center</label>
+            <input id="detail-cost-center" type="text" value="CC-0192" />
+          </div>
+        </fieldset>
+
+        <div class="field-group-title">Edge cases</div>
+
+        <div class="field-row">
+          <label class="field-label" for="dup-field">Legacy field A</label>
+          <input type="text" id="dup-field" name="legacyA" value="alpha" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="dup-field">Legacy field B</label>
+          <input type="text" id="dup-field" name="legacyB" value="beta" />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-css-hidden">CSS-hidden field</label>
+          <input type="text" id="detail-css-hidden" style="display:none" value="css-hidden-value" />
+        </div>
+
+        <div class="field-row">
+          <label class="field-label" for="detail-visually-hidden">Visually-hidden field</label>
+          <input type="text" id="detail-visually-hidden" class="visually-hidden" value="visually-hidden-value" />
+        </div>
+
+        <div class="field-row detail-actions">
+          <button id="detail-save-btn">Save</button>
+          <button type="button" id="detail-cancel-btn">Cancel</button>
+        </div>
+      </form>
+
+      <p class="route-note">Route: <code>#/admin/users/${escapeHtml(user.id)}</code> · Workspace: <strong>Admin</strong></p>
+    </div>
+  `;
+
+  // "Select all" checkbox — tri-state (indeterminate) when some but not all
+  // of the child flags are checked; indeterminate can only be set via JS.
+  const flagsAll = el('detail-flags-all');
+  const flagItems = Array.from(document.querySelectorAll('.detail-flag-item'));
+  function syncFlagsAll() {
+    const checkedCount = flagItems.filter(f => f.checked).length;
+    flagsAll.checked = checkedCount === flagItems.length;
+    flagsAll.indeterminate = checkedCount > 0 && checkedCount < flagItems.length;
+  }
+  syncFlagsAll();
+  flagsAll.addEventListener('change', () => {
+    flagItems.forEach(f => { f.checked = flagsAll.checked; });
+    flagsAll.indeterminate = false;
+  });
+  flagItems.forEach(f => f.addEventListener('change', syncFlagsAll));
+
+  // External verification — simulates a value that loads asynchronously
+  // after the page is already interactive (explicit-wait / flaky-test case).
+  setTimeout(() => {
+    const externalCheck = el('detail-external-check');
+    if (!externalCheck) return; // user navigated away before this resolved
+    externalCheck.value = 'verified — no watchlist matches';
+    externalCheck.disabled = false;
+  }, 900);
+
+  el('detail-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    showMsg(el('detail-msg'), 'Saved (demo only — not persisted).', 'success');
+  });
+  el('detail-cancel-btn').addEventListener('click', () => {
+    location.hash = '#/admin/users';
+  });
+}
+
+/* ---- Parameters > General: accordion of varied, creative input widgets ---- */
+const paramsState = { apiKey: null, channelOrder: null, notifyEmails: null };
+
+function renderParamGeneralPage(container) {
+  if (!paramsState.apiKey) {
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    paramsState.apiKey = 'sk_test_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  if (!paramsState.channelOrder) paramsState.channelOrder = ['Email', 'SMS', 'Push'];
+  if (!paramsState.notifyEmails) paramsState.notifyEmails = ['alerts@example.com'];
+
+  container.innerHTML = `
+    <div class="panel">
+      <h2>Parameters · General</h2>
+      <p class="subtitle">Example settings (demo, not persisted)</p>
+
+      <details open>
+        <summary>Notifications</summary>
+        <div class="details-body">
+          <div class="param-row">
+            <span>Enable email alerts</span>
+            <label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+          </div>
+          <div class="param-row">
+            <span>Dark mode</span>
+            <label class="switch"><input type="checkbox" checked /><span class="slider"></span></label>
+          </div>
+          <div class="param-row">
+            <span>Two-factor authentication</span>
+            <label class="switch"><input type="checkbox" /><span class="slider"></span></label>
+          </div>
+          <div class="field-row" style="margin-top:14px;">
+            <label class="field-label" for="tag-input">Notify emails</label>
+            <div class="tag-input-box" id="tag-input-box">
+              ${paramsState.notifyEmails.map(e => `
+                <span class="tag-chip" data-email="${escapeHtml(e)}">${escapeHtml(e)}<button type="button" class="tag-remove" aria-label="Remove ${escapeHtml(e)}">&times;</button></span>
+              `).join('')}
+              <input type="text" id="tag-input" placeholder="Add email and press Enter" />
+            </div>
+            <div class="field-hint">dynamic chip list — press <code>Enter</code> to add, click &times; to remove</div>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Preferences</summary>
+        <div class="details-body">
+          <div class="field-row">
+            <label class="field-label" for="param-timezone">Timezone</label>
+            <input type="text" id="param-timezone" list="timezone-options" placeholder="Start typing..." />
+            <datalist id="timezone-options">
+              <option value="UTC"></option>
+              <option value="Europe/Paris"></option>
+              <option value="Europe/London"></option>
+              <option value="America/New_York"></option>
+              <option value="America/Los_Angeles"></option>
+              <option value="Asia/Dubai"></option>
+              <option value="Asia/Tokyo"></option>
+            </datalist>
+            <div class="field-hint">native autocomplete via <code>&lt;input list&gt;</code> + <code>&lt;datalist&gt;</code></div>
+          </div>
+          <div class="field-row">
+            <label class="field-label" for="param-accent">Accent color</label>
+            <input type="color" id="param-accent" value="#6366f1" />
+            <div class="field-hint"><code>type="color"</code> native picker</div>
+          </div>
+          <div class="field-row">
+            <label class="field-label" for="param-timeout">Session timeout: <span id="param-timeout-output">30</span> min</label>
+            <input type="range" id="param-timeout" min="5" max="120" step="5" value="30" />
+          </div>
+          <div class="field-row">
+            <label class="field-label" for="param-maintenance">Next maintenance window</label>
+            <input type="date" id="param-maintenance" />
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>API access</summary>
+        <div class="details-body">
+          <div class="field-row">
+            <label class="field-label" for="param-api-key">API key</label>
+            <div class="api-key-row">
+              <input type="password" id="param-api-key" value="${escapeHtml(paramsState.apiKey)}" readonly />
+              <button type="button" id="param-api-reveal" class="icon-btn">Show</button>
+              <button type="button" id="param-api-copy" class="icon-btn">Copy</button>
+            </div>
+            <div class="field-hint">readonly, masked by default — "Show" toggles <code>type="password"</code> &harr; <code>type="text"</code>; "Copy" uses the Clipboard API with an <code>execCommand</code> fallback</div>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Notification channel priority</summary>
+        <div class="details-body">
+          <ul class="reorder-list" id="channel-reorder-list">
+            ${paramsState.channelOrder.map(ch => `<li class="reorder-item" draggable="true" data-channel="${escapeHtml(ch)}">&#9776; ${escapeHtml(ch)}</li>`).join('')}
+          </ul>
+          <div class="field-hint" style="margin-top:8px;">drag to reorder — native HTML5 drag-and-drop (<code>draggable</code>, <code>dragstart</code>/<code>dragover</code>/<code>drop</code>)</div>
+        </div>
+      </details>
+
+      <details>
+        <summary>Danger zone</summary>
+        <div class="details-body">
+          <p class="subtitle" style="margin-bottom:12px;">Demo only — this never actually deletes anything.</p>
+          <button type="button" id="param-delete-open" class="danger-btn">Delete workspace&hellip;</button>
+        </div>
+      </details>
+
+      <dialog id="confirm-delete-dialog">
+        <form id="confirm-delete-form">
+          <h2>Delete workspace?</h2>
+          <p class="subtitle">This is a demo — nothing will actually be deleted. Type <strong>DELETE</strong> to enable the button.</p>
+          <input type="text" id="confirm-delete-input" autocomplete="off" placeholder="Type DELETE" />
+          <div class="detail-actions">
+            <button type="button" id="confirm-delete-cancel">Cancel</button>
+            <button type="submit" id="confirm-delete-confirm" disabled>Delete</button>
+          </div>
+        </form>
+      </dialog>
+
+      <p class="route-note">Route: <code>#/param/general</code> · Workspace: <strong>Parameters</strong></p>
+    </div>
+  `;
+
+  // Tag input (notify emails)
+  el('tag-input').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const val = e.target.value.trim();
+    if (val && !paramsState.notifyEmails.includes(val)) {
+      paramsState.notifyEmails.push(val);
+      renderParamGeneralPage(container);
+    } else {
+      e.target.value = '';
+    }
+  });
+  el('tag-input-box').querySelectorAll('.tag-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const email = btn.closest('.tag-chip').dataset.email;
+      paramsState.notifyEmails = paramsState.notifyEmails.filter(e => e !== email);
+      renderParamGeneralPage(container);
+    });
+  });
+
+  // Live range readout
+  const timeoutRange = el('param-timeout');
+  timeoutRange.addEventListener('input', () => {
+    el('param-timeout-output').textContent = timeoutRange.value;
+  });
+
+  // API key reveal + copy
+  const apiKeyInput = el('param-api-key');
+  const revealBtn = el('param-api-reveal');
+  revealBtn.addEventListener('click', () => {
+    const show = apiKeyInput.type === 'password';
+    apiKeyInput.type = show ? 'text' : 'password';
+    revealBtn.textContent = show ? 'Hide' : 'Show';
+  });
+  el('param-api-copy').addEventListener('click', async () => {
+    const ok = await copyToClipboard(apiKeyInput.value);
+    showToast(ok ? 'API key copied to clipboard' : 'Copy failed — select and copy manually', ok ? 'success' : 'error');
+  });
+
+  // Drag-and-drop channel reorder
+  let draggedChannel = null;
+  el('channel-reorder-list').querySelectorAll('.reorder-item').forEach(item => {
+    item.addEventListener('dragstart', () => {
+      draggedChannel = item.dataset.channel;
+      item.classList.add('dragging');
+    });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    item.addEventListener('dragover', (e) => e.preventDefault());
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const targetChannel = item.dataset.channel;
+      if (!draggedChannel || draggedChannel === targetChannel) return;
+      const order = paramsState.channelOrder;
+      const from = order.indexOf(draggedChannel);
+      const to = order.indexOf(targetChannel);
+      order.splice(from, 1);
+      order.splice(to, 0, draggedChannel);
+      renderParamGeneralPage(container);
+      showToast('Channel priority updated', 'success');
+    });
+  });
+
+  // Danger zone confirm dialog
+  const dialog = el('confirm-delete-dialog');
+  el('param-delete-open').addEventListener('click', () => {
+    el('confirm-delete-input').value = '';
+    el('confirm-delete-confirm').disabled = true;
+    dialog.showModal();
+  });
+  el('confirm-delete-input').addEventListener('input', (e) => {
+    el('confirm-delete-confirm').disabled = e.target.value !== 'DELETE';
+  });
+  el('confirm-delete-cancel').addEventListener('click', () => dialog.close());
+  el('confirm-delete-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    dialog.close();
+    showToast('Workspace NOT deleted — this is a demo.', 'success');
+  });
+}
+
+async function renderTodosPage(container) {
+  container.innerHTML = `
+    <div class="panel">
+      <h2>Your todos</h2>
+      <div class="todo-input-row">
+        <input id="todo-input" type="text" placeholder="What needs doing?" />
+        <button id="todo-add-btn">Add</button>
+      </div>
+      <ul class="todo-list" id="todo-list"></ul>
+      <div class="empty-state" id="empty-state" style="display:none;">No todos yet. Add one above.</div>
+    </div>
+  `;
+  el('todo-add-btn').addEventListener('click', addTodoFromInput);
+  el('todo-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTodoFromInput();
+  });
+  await loadTodos();
+}
+
+async function loadTodos() {
+  const username = currentUsername();
+  const todos = await api.listTodos(username);
+  renderTodos(todos);
+}
+
+function renderTodos(todos) {
+  const list = el('todo-list');
+  const empty = el('empty-state');
+  if (!list || !empty) return; // user navigated away before this resolved
+  list.innerHTML = '';
+  if (todos.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  for (const todo of todos) {
+    const li = document.createElement('li');
+    if (todo.done) li.classList.add('done');
+    const span = document.createElement('span');
+    span.className = 'text';
+    span.textContent = todo.text;
+    const actions = document.createElement('div');
+    actions.className = 'todo-actions';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.textContent = todo.done ? 'Undo' : 'Done';
+    toggleBtn.addEventListener('click', async () => {
+      await api.toggleTodo(currentUsername(), todo.id);
+      loadTodos();
+    });
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.className = 'delete';
+    delBtn.addEventListener('click', async () => {
+      await api.deleteTodo(currentUsername(), todo.id);
+      loadTodos();
+    });
+    actions.appendChild(toggleBtn);
+    actions.appendChild(delBtn);
+    li.appendChild(span);
+    li.appendChild(actions);
+    list.appendChild(li);
+  }
+}
+
+async function addTodoFromInput() {
+  const input = el('todo-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await api.addTodo(currentUsername(), text);
+  loadTodos();
+}
+
+// On load: seed the demo account + directories, then restore session if present
+(async function init() {
+  await api.ensureSeedUser();
+  api.ensureSeedDirectory();
+  api.ensureSeedCases();
+  const session = api.getSession();
+  if (session) {
+    if (!location.hash) location.hash = '#/op/fraud';
+    showApp(session.username);
+  } else {
+    showAuth();
+  }
+})();
+</script>
+</body>
+</html>
