@@ -1,5 +1,18 @@
 import type { ScreenScan, ElementRecord, ExplorationEvent, ChangedElement } from '../types';
 
+/**
+ * Builds the chronological `ExplorationEvent` log the saved report's
+ * navigation timeline, graph, and overview are all reconstructed from.
+ *
+ * `ElementExplorer.tsx` calls `buildExplorationEvent` once per action (plus
+ * once for the initial scan), pairing the scan taken right before the
+ * action with the one taken right after it settled — never deriving
+ * "what's new" from a single final DOM snapshot. A "screen" (Cases, Users,
+ * ...) is fixed for the whole report; navigating within it just changes
+ * the *page* (URL) — see `ExplorationEvent.navigated` and the "page" vs.
+ * "screen" wording throughout `report.ts`.
+ */
+
 // `el.index` is only stable within ONE scan of ONE page — it gets
 // reassigned 0..N on every rescan, and two different pages' elements can
 // land on the same index by coincidence. `fingerprint` is at least stable

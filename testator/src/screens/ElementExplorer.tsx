@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Page } from 'playwright';
@@ -7,19 +7,13 @@ import { scanScreen } from '../engine/scan';
 import { saveReport } from '../engine/report';
 import { tryElement, fillElement } from '../engine/interact';
 import { diffScansSafe, summarizeRescan } from '../engine/diff';
-import { elementKey, buildExplorationEvent } from '../engine/exploration';
-import { deriveConfidence, confidenceGlyph, confidenceLabel } from '../engine/confidence';
+import { elementKey } from '../engine/exploration';
 import { buildRows, matchesFilter, locateElement, toggleExpandKey, setClusterLevel, type Row } from './elementExplorerRows';
-import type { Config, ElementRecord, ScreenScan, DiffResult, RescanSummary, ExplorationEvent, SeenElementEntry } from '../types';
-
-// "No id present" only matters for elements you'd actually want to select by
-// id for automation — form fields. Flagging it on every button/link/result
-// row (which were never going to have one) just drowns out the signal.
-function isFormField(el: ElementRecord): boolean {
-  return el.availableActions.some(a =>
-    ['fill', 'selectOption', 'selectOptions', 'check', 'uncheck', 'toggle', 'setValue', 'setInputFiles'].includes(a)
-  );
-}
+import { useExplorationLog } from './useExplorationLog';
+import { ElementRow } from './ElementRow';
+import { ElementDetailPanel } from './ElementDetailPanel';
+import { RescanOverlay } from './RescanOverlay';
+import type { Config, ElementRecord, ScreenScan, DiffResult, RescanSummary } from '../types';
 
 const FILL_ACTIONS = ['fill', 'selectOption', 'selectOptions'];
 const FILL_LIKE_ACTIONS = ['fill', 'selectOption', 'selectOptions', 'check', 'uncheck', 'toggle', 'setValue'];
@@ -51,6 +45,22 @@ interface Props {
   onNavigate: (path: string[]) => void;
 }
 
+/**
+ * The main exploration screen: scans the live DOM, renders it as one
+ * scrollable collapsible list (see `elementExplorerRows.ts` for how), and
+ * lets `Enter` fill/click/select/activate whatever's highlighted — live, in
+ * the real browser. Every scanned element is unconditionally part of the
+ * saved report; moving the cursor only changes what the detail panel shows.
+ *
+ * State here falls into three groups: UI mode flags (`filtering`/`noting`/
+ * `filling`/`selecting`/`inspecting`/`acting` — which prompt or overlay, if
+ * any, is currently capturing input), the current scan (`scan`, `cursor`,
+ * `expanded`, `filter`), and this screen's own notes. The session's full
+ * exploration history (every element ever seen, the chronological event
+ * log the report's navigation timeline is built from) lives in
+ * `useExplorationLog`, not here — nothing in this component's render tree
+ * depends on it.
+ */
 export function ElementExplorer({ page, config, workspace, workspaceLabel, screen, onBack, onActivity }: Props) {
   const [status, setStatus] = useState('Scanning DOM…');
   const [scan, setScan] = useState<ScreenScan | null>(null);
@@ -70,46 +80,10 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
   const [multiSelectDraft, setMultiSelectDraft] = useState<Set<string>>(new Set());
   const [inspecting, setInspecting] = useState(false);
   const [rescanOverlay, setRescanOverlay] = useState<{ diff: DiffResult; summary: RescanSummary } | null>(null);
-  // These three accumulate the whole session's exploration history for the
-  // saved report, not the live UI — nothing in the render tree depends on
-  // them, so refs avoid pointless re-renders and (more importantly) avoid
-  // any risk of an async action reading a stale state snapshot of its own.
-  const seenElementsRef = useRef<Map<string, SeenElementEntry>>(new Map());
-  const visitedUrlsRef = useRef<Set<string>>(new Set());
-  const explorationEventsRef = useRef<ExplorationEvent[]>([]);
+
+  const { recordEvent, getAllSeenElements, getEvents } = useExplorationLog();
 
   const currentTreePath = () => [workspaceLabel, screen];
-
-  // The report is reconstructed from this chronological event log, never
-  // from just the final DOM snapshot — each event pairs the scan taken
-  // right before an action with the one taken right after it settled, so
-  // "what's new / what's gone / what moved to a different page" is a real
-  // computed fact, not an inference from whatever's on screen at save time.
-  const recordEvent = (
-    kind: 'initial-load' | 'action',
-    message: string,
-    actingElement: ElementRecord | null,
-    before: ScreenScan | null,
-    after: ScreenScan
-  ) => {
-    const seenBeforeThisEvent = new Set(seenElementsRef.current.keys());
-    for (const el of after.elements) {
-      seenElementsRef.current.set(elementKey(after.url, el), { url: after.url, element: el });
-    }
-    visitedUrlsRef.current.add(after.url);
-    explorationEventsRef.current.push(
-      buildExplorationEvent({
-        kind,
-        message,
-        actingElement,
-        before,
-        after,
-        seenBeforeThisEvent,
-        totalElementsSoFar: seenElementsRef.current.size,
-        pagesVisitedSoFar: visitedUrlsRef.current.size,
-      })
-    );
-  };
 
   const runScan = (): Promise<ScreenScan | null> => {
     setStatus('Scanning DOM…');
@@ -140,7 +114,7 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
       });
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       const result = await runScan();
       if (result) recordEvent('initial-load', 'Initial screen loaded', null, null, result);
@@ -150,7 +124,7 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
 
   const rows: Row[] = buildRows({ elements: scan?.elements || [], expanded, filter });
 
-  React.useEffect(() => {
+  useEffect(() => {
     setCursor(0);
   }, [filter]);
 
@@ -163,12 +137,12 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
       ...scan,
       elements: scan.elements.map(el => ({ ...el, note: notes[elementKey(scan.url, el)] || null })),
     };
-    const allSeenElements: SeenElementEntry[] = Array.from(seenElementsRef.current.values()).map(entry => ({
+    const allSeenElements = getAllSeenElements().map(entry => ({
       url: entry.url,
       element: { ...entry.element, note: notes[elementKey(entry.url, entry.element)] || entry.element.note || null },
     }));
     setStatus('Writing report…');
-    const { reportPath, diff } = saveReport(annotated, config, explorationEventsRef.current, allSeenElements);
+    const { reportPath, diff } = saveReport(annotated, config, getEvents(), allSeenElements);
     setSaved(reportPath);
     setStatus(`Saved — ${diff.changes.length} change(s) since last scan`);
     onActivity(`Saved report for ${workspace} › ${screen} — ${diff.changes.length} change(s) since last scan`, currentTreePath());
@@ -470,42 +444,10 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
   const hiddenAbove = viewportStart;
   const hiddenBelow = rows.length - viewportStart - visibleSlice.length;
   const highlighted = highlightedRow?.kind === 'element' ? highlightedRow.el : undefined;
+  const highlightedNote = highlighted ? notes[elementKey(scan?.url ?? '', highlighted)] : undefined;
 
   if (rescanOverlay) {
-    const { summary, diff } = rescanOverlay;
-    const shown = diff.changes.slice(0, 15);
-    const more = diff.changes.length - shown.length;
-    return (
-      <Box flexDirection="column" flexGrow={1} paddingX={1}>
-        <Text bold>RESCAN RESULTS · {screen}</Text>
-        <Box marginTop={1} flexDirection="column">
-          <Text color="green">+ {summary.added} new element{summary.added === 1 ? '' : 's'}</Text>
-          <Text color="red">- {summary.removed} removed element{summary.removed === 1 ? '' : 's'}</Text>
-          <Text color="yellow">~ {summary.changed} modified element{summary.changed === 1 ? '' : 's'}</Text>
-          <Text dimColor>= {summary.unchanged} unchanged element{summary.unchanged === 1 ? '' : 's'}</Text>
-        </Box>
-        {shown.length > 0 && (
-          <Box marginTop={1} flexDirection="column">
-            <Text bold>CHANGES</Text>
-            {shown.map((c, i) => {
-              const prefix =
-                c.type === 'added' ? '+ ' : c.type === 'removed' ? '- ' : c.type === 'low-confidence-match' ? '⚠ ' : '~ ';
-              const color = c.type === 'added' ? 'green' : c.type === 'removed' ? 'red' : 'yellow';
-              return (
-                <Text key={i} color={color} wrap="truncate-end">
-                  {prefix}
-                  {c.label || c.message}
-                </Text>
-              );
-            })}
-            {more > 0 && <Text dimColor>...{more} more (see saved report)</Text>}
-          </Box>
-        )}
-        <Box marginTop={1}>
-          <Text dimColor>Esc/q close · s save report</Text>
-        </Box>
-      </Box>
-    );
+    return <RescanOverlay screen={screen} summary={rescanOverlay.summary} diff={rescanOverlay.diff} />;
   }
 
   return (
@@ -540,127 +482,19 @@ export function ElementExplorer({ page, config, workspace, workspaceLabel, scree
               {rows.filter(r => r.kind === 'element').length === 1 ? '' : 'es'}) · / edit · Esc clear
             </Text>
           )}
-          {/* wrap="truncate-end": Ink doesn't reliably reserve vertical
-              space for a wrapped Text node inside a tight flex column — a
-              long label that wraps to 2 lines can get the next row drawn on
-              top of its second line instead of below it. Every row here is
-              deliberately a single flat Text (not a nested Box) for the
-              same reason — a Box-per-row table layout is more visually
-              aligned but it's exactly the shape that corrupted a different
-              screen earlier this session once content got tall. */}
           {hiddenAbove > 0 && <Text dimColor>↑ {hiddenAbove} more above</Text>}
-          {visibleSlice.map((row, i) => {
-            const absoluteIndex = viewportStart + i;
-            const isCur = absoluteIndex === cursor;
-            const prefix = isCur ? '❯ ' : '  ';
-            if (row.kind === 'group') {
-              return (
-                <Text key={row.key} color={isCur ? 'cyan' : undefined} wrap="truncate-end">
-                  {prefix}
-                  {row.expanded ? '▼' : '▶'} {row.name} ({row.count})
-                </Text>
-              );
-            }
-            if (row.kind === 'cluster') {
-              return (
-                <Text key={row.key} color={isCur ? 'cyan' : undefined} wrap="truncate-end">
-                  {prefix}  {row.expandState > 0 ? '▾' : '▸'} {row.label} ({row.count})
-                </Text>
-              );
-            }
-            if (row.kind === 'more') {
-              return (
-                <Text key={row.key} color={isCur ? 'cyan' : undefined} dimColor wrap="truncate-end">
-                  {prefix}  └─ ... {row.remaining} more
-                </Text>
-              );
-            }
-            const el = row.el;
-            const glyph = confidenceGlyph(deriveConfidence(el));
-            const name = el.accessibleName || el.id || el.name || `<${el.tag}>`;
-            const typeLabel = el.tag + (el.type ? `:${el.type}` : '');
-            const actionsLabel = el.availableActions.join('·') || 'none';
-            return (
-              <Text key={row.key} color={isCur ? 'cyan' : undefined} wrap="truncate-end">
-                {prefix}
-                {row.clusterKey ? '  ├─ ' : '  '}
-                {glyph} {name}  {typeLabel}  {actionsLabel}
-                {!el.id && isFormField(el) ? ' ⚠' : ''}
-              </Text>
-            );
-          })}
+          {visibleSlice.map((row, i) => (
+            <ElementRow key={row.key} row={row} isCurrent={viewportStart + i === cursor} />
+          ))}
           {hiddenBelow > 0 && <Text dimColor>↓ {hiddenBelow} more below</Text>}
         </Box>
         <Box flexDirection="column" width="55%" borderStyle="round" borderColor="gray" paddingX={1}>
-          {inspecting && highlighted ? (
-            <>
-              <Text bold wrap="truncate-end">
-                Inspect: {highlighted.accessibleName || '(no accessible name)'}
-              </Text>
-              <Text dimColor wrap="truncate-end">
-                Ancestor trail: {highlighted.cssPath.split(' > ').slice(0, -1).join(' › ') || '(root)'}
-              </Text>
-              <Text wrap="truncate-end">All ranked selectors:</Text>
-              {highlighted.selectors.map((s, i) => (
-                <Text key={i} wrap="truncate-end">
-                  {' '}
-                  - {s.type} {s.value} ({s.confidence})
-                </Text>
-              ))}
-              <Text wrap="truncate-end">
-                Validation: required={highlighted.required ? 'yes' : 'no'} readonly={highlighted.readonly ? 'yes' : 'no'}{' '}
-                disabled={highlighted.disabled ? 'yes' : 'no'} multiple={highlighted.multiple ? 'yes' : 'no'}
-              </Text>
-              <Text dimColor>Esc/i close inspect · q back</Text>
-            </>
-          ) : highlightedRow?.kind === 'group' ? (
-            <>
-              <Text bold wrap="truncate-end">
-                {highlightedRow.name}
-              </Text>
-              <Text dimColor>
-                {highlightedRow.count} elements — {highlightedRow.expanded ? 'Enter/← collapse' : 'Enter/→ expand'}
-              </Text>
-            </>
-          ) : highlightedRow?.kind === 'cluster' ? (
-            <>
-              <Text bold wrap="truncate-end">
-                {highlightedRow.label}
-              </Text>
-              <Text dimColor>
-                {highlightedRow.count} elements in this collection — Enter/→ expand · ← collapse
-              </Text>
-            </>
-          ) : highlightedRow?.kind === 'more' ? (
-            <Text dimColor>Press Enter or → to show all {highlightedRow.remaining} more</Text>
-          ) : highlighted ? (
-            <>
-              <Text bold wrap="truncate-end">
-                {highlighted.accessibleName || '(no accessible name)'}
-              </Text>
-              <Text wrap="truncate-end">
-                Tag: {'<' + highlighted.tag + (highlighted.type ? ` type="${highlighted.type}"` : '') + '>'}
-              </Text>
-              {highlighted.groupContext && <Text wrap="truncate-end">Group: {highlighted.groupContext}</Text>}
-              <Text>
-                Visible: {highlighted.visible ? 'yes' : 'no'}  Disabled: {highlighted.disabled ? 'yes' : 'no'}  Required:{' '}
-                {highlighted.required ? 'yes' : 'no'}
-              </Text>
-              <Text wrap="truncate-end">
-                Selector: {highlighted.bestSelector.type}={highlighted.bestSelector.value} (
-                {highlighted.bestSelector.confidence} confidence)
-              </Text>
-              {!highlighted.id && isFormField(highlighted) && <Text color="yellow">⚠ No id present</Text>}
-              <Text wrap="truncate-end">Available actions: {highlighted.availableActions.join(' · ') || 'none'}</Text>
-              <Text wrap="truncate-end">Inspection: {confidenceGlyph(deriveConfidence(highlighted))} {confidenceLabel(deriveConfidence(highlighted))}</Text>
-              {notes[elementKey(scan?.url ?? '', highlighted)] && (
-                <Text wrap="truncate-end">Note: {notes[elementKey(scan?.url ?? '', highlighted)]}</Text>
-              )}
-              <Text dimColor>[Enter] Execute action    [I] Inspect details    [N] Add note</Text>
-            </>
-          ) : (
-            <Text dimColor>No element selected</Text>
-          )}
+          <ElementDetailPanel
+            inspecting={inspecting}
+            highlightedRow={highlightedRow}
+            highlighted={highlighted}
+            note={highlightedNote}
+          />
         </Box>
       </Box>
       {noting && (

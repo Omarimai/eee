@@ -3,6 +3,11 @@ import { Box } from 'ink';
 import { Fullscreen } from './Fullscreen';
 import { HeaderBar } from './HeaderBar';
 
+/**
+ * The app's one top-level layout: `Fullscreen` for the alternate-screen
+ * buffer, `HeaderBar` pinned above, and whatever `app.tsx` is currently
+ * routing to filling the rest. Every screen in the app renders inside this.
+ */
 interface Props {
   environment: string;
   authUser: string | null;

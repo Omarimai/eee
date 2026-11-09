@@ -12,6 +12,12 @@ const DEFAULT_SELECTORS = {
   contentRegion: '#route-content',
 };
 
+/**
+ * Reads `config.json` from the project root and fills in defaults for
+ * anything missing — the one place `baseUrl`/`auth`/`selectors`/the various
+ * output directories are resolved into the shape the rest of the app
+ * (`Config` in `types.ts`) expects. Called once, at `App` mount.
+ */
 export function loadConfig(): Config {
   const configPath = path.join(ROOT, 'config.json');
   const raw = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {};

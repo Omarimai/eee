@@ -1,7 +1,13 @@
-import React from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { TreeNode } from '../engine/tree';
 
+/**
+ * Read-only view of `app.tsx`'s `tree` state (built by `engine/tree.ts`) —
+ * the whole session's navigation map as an ASCII tree, newest branches
+ * last. Unrelated to `exploration.ts`'s per-element event log; this tree is
+ * keyed by arbitrary label paths (menu choices, workspace/screen names),
+ * not elements, and spans every screen visited this session, not just one.
+ */
 interface Props {
   tree: TreeNode;
   onBack: () => void;

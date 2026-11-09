@@ -3,6 +3,15 @@ import { buildSelectors, computeFingerprint } from './selectors';
 import { getAvailableActions } from './actions';
 import type { Config, ScreenScan, ElementRecord } from '../types';
 
+/**
+ * The core DOM scanner. `scanScreen` is the single entry point everything
+ * else builds on: it runs `inPageScan` inside the live browser via
+ * `page.evaluate` (so it must stay self-contained — no closures over
+ * Node-side state), collecting every interactive element's raw attributes,
+ * then layers on selector ranking (`selectors.ts`), available actions
+ * (`actions.ts`), and per-scan duplicate-selector disambiguation before
+ * returning a `ScreenScan`.
+ */
 interface RawScanResult {
   tag: string;
   type: string | null;

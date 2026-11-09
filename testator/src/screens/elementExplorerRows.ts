@@ -2,6 +2,15 @@ import type { ElementRecord } from '../types';
 import { detectCollections, type ElementCluster } from '../engine/collections';
 import { categorizeUngrouped, SEMANTIC_CATEGORY_ORDER } from '../engine/categorize';
 
+/**
+ * Builds the flattened, collapsible view model `ElementExplorer` renders
+ * and the cursor walks over — layering DOM-group/semantic-category
+ * bucketing and collection detection on top of a plain scan's elements.
+ * Pure and React-free: `ElementExplorer.tsx` owns the `expanded` Set state
+ * this reads, but none of the bucketing/clustering logic itself depends on
+ * React.
+ */
+
 // The single flattened view model the list renders and the cursor walks —
 // replaces the old two-mode navigation (a full-screen group picker you had
 // to drill into, vs. a separate flat element list) with one scrollable,
@@ -17,6 +26,15 @@ export function matchesFilter(el: ElementRecord, filter: string): boolean {
   if (!filter.trim()) return true;
   const haystack = `${el.accessibleName || ''} ${el.id || ''} ${el.name || ''} ${el.tag}`.toLowerCase();
   return haystack.includes(filter.trim().toLowerCase());
+}
+
+// "No id present" only matters for elements you'd actually want to select by
+// id for automation — form fields. Flagging it on every button/link/result
+// row (which were never going to have one) just drowns out the signal.
+export function isFormField(el: ElementRecord): boolean {
+  return el.availableActions.some(a =>
+    ['fill', 'selectOption', 'selectOptions', 'check', 'uncheck', 'toggle', 'setValue', 'setInputFiles'].includes(a)
+  );
 }
 
 interface Bucket {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Page } from 'playwright';
@@ -6,6 +6,12 @@ import { StatusBar } from '../components/StatusBar';
 import { startRecording, stopRecording, saveScenario, type ScenarioStep } from '../engine/scenario';
 import type { Config } from '../types';
 
+/**
+ * Records a named sequence of real interactions in the live browser
+ * (`engine/scenario.ts`'s `startRecording` listens for them) and writes the
+ * result to `scenariosDir` on stop. `ScenarioReplay` is the counterpart
+ * that reads scenarios saved here and plays them back.
+ */
 interface Props {
   page: Page;
   config: Config;

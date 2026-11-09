@@ -1,5 +1,11 @@
 import type { ElementRecord } from '../types';
 
+/**
+ * Derives a ●/◐/○ confidence badge per element from data the scanner
+ * already captured — no new DOM reads, no extra work. Lets the Explorer
+ * show at a glance which elements are safe to automate against without the
+ * user pressing "Inspect" on every single one.
+ */
 export type ConfidenceLevel = 'complete' | 'partial' | 'needs-inspection';
 
 // Three weak/strong signals, all from fields the scanner already captures —

@@ -1,5 +1,13 @@
 import type { ElementRecord } from '../types';
 
+/**
+ * Finds runs of near-identical elements (table rows, result cards, repeated
+ * list items) and groups them into a single collapsible "collection" —
+ * exactly what the Explorer's UI and the saved report both render instead
+ * of hundreds of individual rows. Operates on one already-grouped bucket of
+ * elements at a time (a single DOM group or semantic category), not the
+ * whole scan — see `screens/elementExplorerRows.ts`'s callers.
+ */
 export interface ElementCluster {
   key: string;
   label: string;

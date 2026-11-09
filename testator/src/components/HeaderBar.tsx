@@ -1,6 +1,11 @@
-import React from 'react';
 import { Box, Text } from 'ink';
 
+/**
+ * The persistent top bar `Shell` renders above every screen — environment
+ * tag, login/browser status dots, and the most recent activity-log
+ * message. Purely presentational: all of its props are owned and derived
+ * by `app.tsx`.
+ */
 interface Props {
   environment: string;
   authUser: string | null;

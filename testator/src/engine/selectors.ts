@@ -1,5 +1,13 @@
 import type { SelectorCandidate } from '../types';
 
+/**
+ * Ranks every way you could target a scanned element — `data-testid` > `id`
+ * > `name` > accessible label > CSS path > XPath, ordered by how likely
+ * each one is to survive the next redesign, not by what's easiest to grab.
+ * `scan.ts` calls `buildSelectors` per element, then disambiguates
+ * duplicates (via `nth`) before picking `selectors[0]` as the "best" one and
+ * passing it to `computeFingerprint` for a stable cross-scan identity.
+ */
 interface RawElement {
   tag: string;
   id: string | null;

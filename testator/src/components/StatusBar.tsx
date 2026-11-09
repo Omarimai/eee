@@ -1,7 +1,11 @@
-import React from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 
+/**
+ * The bottom status line every screen ends with — a spinner while
+ * something's in flight, or a ✓/✗/• glyph once it settles, next to
+ * whatever status text the caller passes in.
+ */
 interface Props {
   text: string;
   spinning?: boolean;

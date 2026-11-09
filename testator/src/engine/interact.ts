@@ -1,6 +1,14 @@
 import type { Locator, Page } from 'playwright';
 import type { ElementRecord, SelectorCandidate } from '../types';
 
+/**
+ * Turns a scanned `ElementRecord` + its best selector into a real Playwright
+ * action against the live browser: click/activate (`tryElement`) or
+ * fill/select (`fillElement`). This is the only place that actually touches
+ * the browser on the user's behalf — everything upstream (`scan.ts`,
+ * `actions.ts`) just decides WHAT could be done; this does it.
+ */
+
 // bestSelector.value is already a ready-to-use CSS string for id/name/
 // data-testid/css types, but 'label' holds raw accessible-name text and
 // 'xpath' needs an explicit prefix — Playwright's default locator() only

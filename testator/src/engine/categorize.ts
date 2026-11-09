@@ -1,5 +1,14 @@
 import type { ElementRecord } from '../types';
 
+/**
+ * Semantic-category fallback for elements with no real DOM structure.
+ *
+ * `groupContext` (computed in `scan.ts` from `.field-group-title`/accordion
+ * markup) always wins when a page genuinely has it — this module only
+ * sorts whatever's left over (today's "(ungrouped)" bucket) into one of six
+ * tag/role/action-based categories. Heuristic, not a guarantee — see
+ * `categorizeUngrouped`'s own comment for exactly where it can misfire.
+ */
 export type SemanticCategory = 'Navigation' | 'Search & filters' | 'Data & records' | 'Actions' | 'Forms' | 'Other';
 
 export const SEMANTIC_CATEGORY_ORDER: SemanticCategory[] = [

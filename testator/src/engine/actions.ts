@@ -1,3 +1,12 @@
+/**
+ * Decides what a scanned DOM element can actually be made to do.
+ *
+ * A pure tag/type/role → action-list lookup table (fill, click, selectOption,
+ * check, activate, ...). No DOM access, no side effects — `scan.ts` calls
+ * this once per element right after reading its raw attributes, and the
+ * result (`availableActions`) is what `interact.ts` later dispatches on to
+ * decide HOW to act on an element the user chose.
+ */
 export function getAvailableActions(
   tag: string,
   type: string | null,

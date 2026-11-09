@@ -40,10 +40,19 @@ type Route =
 
 type BrowserStatus = 'connecting' | 'ready' | 'error';
 
+/**
+ * The app's root component and router — owns the one real browser
+ * page/context for the whole session, the sign-in consent flow (see
+ * `waitForAuthConsent`), the activity log and exploration tree both fed by
+ * `record()`, and a hand-rolled `Route` union switched over to decide which
+ * screen (`ElementExplorer`, `ScenarioRecorder`, ...) renders inside
+ * `Shell`. Each screen component owns its own state; this component only
+ * owns what has to survive a screen change — the page, the auth/browser
+ * status, and the two session-wide logs.
+ */
 export function App() {
   const { exit } = useApp();
   const [config] = useState<Config>(() => loadConfig());
-  const [browser, setBrowser] = useState<Browser | null>(null);
   const [context, setContext] = useState<BrowserContext | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [browserStatus, setBrowserStatus] = useState<BrowserStatus>('connecting');
@@ -134,7 +143,6 @@ export function App() {
       const { browser, context, page } = await launchBrowser(config);
       browserRef = browser;
       contextRef = context;
-      setBrowser(browser);
       setContext(context);
       setPage(page);
       setBrowserStatus('ready');

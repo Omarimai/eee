@@ -3,6 +3,14 @@ import path from 'node:path';
 import type { Page } from 'playwright';
 import type { Config } from '../types';
 
+/**
+ * Record/replay for click-and-type scenarios, independent of the Explorer.
+ * Recording attaches real DOM event listeners (`inPageRecorder`, via
+ * `page.evaluate`) that forward every click/change back to Node; replaying
+ * just walks the saved steps and re-issues them with Playwright. Known gap
+ * (see README): doesn't dedupe multi-fire events (e.g. a checkbox click
+ * also firing `change`).
+ */
 export interface ScenarioStep {
   action: string;
   selector: { type: string; value: string };

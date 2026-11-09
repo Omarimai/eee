@@ -4,6 +4,13 @@ import { chromium, firefox, webkit } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
 import type { Config } from '../types';
 
+/**
+ * Playwright browser/session lifecycle: launch, login/logout, save/restore
+ * the auth session, and read/drive the sidebar's workspace and screen
+ * pickers. Everything here operates on a real, visible browser window —
+ * `app.tsx` owns *when* each of these runs (including pausing for the
+ * sign-in consent prompt before `login()` is ever called).
+ */
 export async function launchBrowser(
   config: Config
 ): Promise<{ browser: Browser; context: BrowserContext; page: Page }> {

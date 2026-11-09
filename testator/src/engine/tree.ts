@@ -1,3 +1,11 @@
+/**
+ * Pure, immutable helpers for the session-wide exploration tree ("View
+ * exploration tree" in the main menu) — a map of every workspace/screen
+ * visited and every meaningful action taken, as sibling branches rather
+ * than a flat log. Unrelated to `exploration.ts`'s per-element event log
+ * that a single screen's saved report is built from; this tree spans the
+ * whole app session, keyed by arbitrary label paths, not elements.
+ */
 export interface TreeNode {
   id: string;
   label: string;

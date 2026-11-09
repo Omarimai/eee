@@ -1,7 +1,12 @@
-import React from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { LogEntry } from '../types';
 
+/**
+ * Read-only tail of this session's activity log (`app.tsx`'s `record()`
+ * calls, mirrored to `logsDir/activity.log` on disk) — the last 30 entries,
+ * newest last. Unrelated to `ExplorationTreeView`, which shows the same
+ * history reshaped into a navigation tree rather than a flat timeline.
+ */
 interface Props {
   entries: LogEntry[];
   logFilePath: string;

@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 
+/**
+ * Generic up/down/Enter/Esc list picker reused by every "choose one of
+ * these" screen in `app.tsx` (main menu, workspace picker, screen picker)
+ * and by `ScenarioReplay`. Carries no knowledge of what the items mean —
+ * callers interpret `value` themselves in `onSelect`.
+ */
 export interface MenuItem {
   label: string;
   value: string;

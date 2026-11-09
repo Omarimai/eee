@@ -1,6 +1,12 @@
 import React, { useEffect } from 'react';
 import { Box } from 'ink';
 
+/**
+ * Switches the terminal to the alternate screen buffer and hides the
+ * cursor for as long as this is mounted, restoring both on unmount —
+ * `Shell` wraps the whole app in this so testator behaves like a full
+ * TUI (e.g. vim) instead of scrolling the normal terminal history.
+ */
 export function Fullscreen({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     process.stdout.write('\x1b[?1049h');

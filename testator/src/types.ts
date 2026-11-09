@@ -1,3 +1,11 @@
+/**
+ * The shared data model every module in testator reads or produces — a
+ * scanned element and its selectors (`ElementRecord`/`SelectorCandidate`),
+ * a full-screen scan (`ScreenScan`), the diff/rescan types, the
+ * chronological exploration event log (`ExplorationEvent`, built by
+ * `engine/exploration.ts`), and the app-level `Config`/`LogEntry` types.
+ * Pure type definitions — no logic lives here.
+ */
 export type Confidence = 'high' | 'medium' | 'low';
 
 export interface SelectorCandidate {

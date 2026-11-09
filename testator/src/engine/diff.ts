@@ -1,5 +1,14 @@
 import type { ScreenScan, DiffResult, DiffChange, ElementRecord, RescanSummary } from '../types';
 
+/**
+ * Field-level diff between two scans of the SAME page — fingerprint-matches
+ * elements, with a label+group fallback for ones that lost their id/name.
+ * Two call sites: `report.ts`'s save-time "changes since last scan" (vs. a
+ * *previously saved* report, possibly from an earlier session) and the
+ * Explorer's live `r`-key rescan overlay (vs. whatever was in memory a
+ * moment ago). See `diffScansSafe` below for the URL-aware wrapper both of
+ * those actually call — this raw version assumes same-page by contract.
+ */
 export function diffScans(oldScan: ScreenScan, newScan: ScreenScan): DiffResult {
   const changes: DiffChange[] = [];
   const oldByFingerprint = new Map(oldScan.elements.map(e => [e.fingerprint, e]));

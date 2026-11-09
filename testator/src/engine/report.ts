@@ -3,6 +3,15 @@ import path from 'node:path';
 import { diffScansSafe } from './diff';
 import type { Config, ScreenScan, DiffResult, ElementRecord, ExplorationEvent, SeenElementEntry } from '../types';
 
+/**
+ * Renders and persists the navigation-centric report: `saveReport` writes
+ * the current scan as JSON (for the next save's diff) and a human-readable
+ * .txt built by `renderNavigationReport`, in five sections — exploration
+ * overview, navigation timeline (reconstructed from `events`, see
+ * `engine/exploration.ts`), navigation graph, the complete element
+ * inventory (every element seen on every page this session, see
+ * `SeenElementEntry`), and changes since the last *saved* report.
+ */
 export function saveReport(
   scan: ScreenScan,
   config: Config,
@@ -43,10 +52,10 @@ function compactElementLine(el: ElementRecord): string {
   return el.accessibleName || el.id || el.name || `<${el.tag}>`;
 }
 
-// Shared by the complete element inventory — every element gets the exact
-// same id/selector/confidence card. `indent` lets nested uses (none today,
-// kept for symmetry with the rest of the renderer) offset further in.
-function renderElementDetailLines(el: ElementRecord, indent: string): string[] {
+// One element's full id/selector/confidence card, used by the complete
+// element inventory section.
+function renderElementDetailLines(el: ElementRecord): string[] {
+  const indent = '  ';
   const lines: string[] = [];
   lines.push(`${indent}Tag: <${el.tag}${el.type ? ` type="${el.type}"` : ''}>`);
   if (el.groupContext) lines.push(`${indent}Group: ${el.groupContext}`);
@@ -278,7 +287,7 @@ function renderNavigationReport(
     counter++;
     lines.push('');
     lines.push(`[${counter}] ${el.accessibleName || el.id || el.name || '(unlabeled)'}`);
-    lines.push(...renderElementDetailLines(el, '  '));
+    lines.push(...renderElementDetailLines(el));
   };
 
   const pageUrls = Array.from(new Set(allSeenElements.map(e => e.url)));

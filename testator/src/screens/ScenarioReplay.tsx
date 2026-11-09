@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Page } from 'playwright';
 import { StatusBar } from '../components/StatusBar';
@@ -6,6 +6,11 @@ import { Menu } from '../components/Menu';
 import { listScenarios, loadScenario, replayStep } from '../engine/scenario';
 import type { Config } from '../types';
 
+/**
+ * Picks one of the scenarios `ScenarioRecorder` saved to `scenariosDir` and
+ * replays its steps against the live browser one at a time via
+ * `engine/scenario.ts`'s `replayStep`, reporting progress as it goes.
+ */
 interface Props {
   page: Page;
   config: Config;
